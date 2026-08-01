@@ -1,0 +1,6 @@
+stage,n,budget_min_ms,budget_max_ms,p50_ms,p95_ms,p99_ms,within_budget_p50,note
+endpointing_ms,100,300,700,500.0,500.0,500.0,True,"real (fixed-threshold wait, near-constant by construction)"
+asr_final_ms,100,80,150,679.9,1553.7,3793.5,False,"real compute (tiny/CPU model, not production distil-large-v3/GPU)"
+llm_ttft_ms,100,90,300,195.8,291.8,299.2,True,"TODO(gpu-required): mock, sampled from budget -- vLLM can't run here"
+tts_first_chunk_ms,100,40,90,108.7,196.7,205.3,False,"real compute (Piper/CPU, not production Kokoro/GPU)"
+e2e_ms,100,510,1240,3663.9,7975.4,8422.8,False,sum of the above
