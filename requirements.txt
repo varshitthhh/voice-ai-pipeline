@@ -1,1 +1,6 @@
 matplotlib
+pandas
+requests
+huggingface_hub
+soundfile
+numpy
