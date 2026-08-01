@@ -6,12 +6,44 @@ import torch
 import torch.nn as nn
 
 
-def train_model(model, train_batches: list, val_batches: list, epochs: int = 10, lr: float = 1e-3, device: str = "cpu", verbose: bool = True) -> list:
+def train_model(
+    model,
+    train_batches: list,
+    val_batches: list,
+    epochs: int = 10,
+    lr: float = 1e-3,
+    device: str = "cpu",
+    verbose: bool = True,
+    patience: int = 5,
+    weight_decay: float = 1e-4,
+) -> list:
+    """Trains with early stopping on val_loss (patience epochs with no
+    improvement) and restores the best-val_loss checkpoint's weights into
+    `model` before returning -- confirmed necessary on the first real T4
+    run: with a small (~320 example) training set, val_loss bottomed out
+    around epoch 1-2 and then climbed monotonically to 3x its best value by
+    epoch 29 while train_loss kept dropping (textbook overfitting). Without
+    early stopping, the returned model was the badly-overfit final-epoch
+    one, not the good epoch-1 one. `weight_decay` (L2) is a second, milder
+    defense against the same problem.
+
+    `history` contains every epoch actually run (useful for plotting the
+    overfitting shape, which is itself worth keeping). Callers should read
+    `best_epoch(history)` for the metrics that correspond to the weights
+    actually left in `model`, not blindly trust `history[-1]` -- early
+    stopping runs `patience` extra epochs past the best one to confirm it
+    really was the best, so the last logged row is normally worse than the
+    restored model's true performance.
+    """
     model.to(device)
-    opt = torch.optim.Adam(model.parameters(), lr=lr)
+    opt = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     loss_fn = nn.BCEWithLogitsLoss(reduction="none")
 
     history = []
+    best_val_loss = float("inf")
+    best_state = None
+    epochs_since_improvement = 0
+
     for epoch in range(epochs):
         model.train()
         train_loss_sum, n_train = 0.0, 0.0
@@ -47,7 +79,28 @@ def train_model(model, train_batches: list, val_batches: list, epochs: int = 10,
         if verbose:
             print(f"epoch {epoch}: train_loss={row['train_loss']:.4f} val_loss={row['val_loss']:.4f} val_acc={row['val_acc']:.3f}")
 
+        if row["val_loss"] < best_val_loss - 1e-6:
+            best_val_loss = row["val_loss"]
+            best_state = {k: v.detach().clone() for k, v in model.state_dict().items()}
+            epochs_since_improvement = 0
+        else:
+            epochs_since_improvement += 1
+            if epochs_since_improvement >= patience:
+                if verbose:
+                    print(f"early stopping at epoch {epoch} (no val_loss improvement for {patience} epochs)")
+                break
+
+    if best_state is not None:
+        model.load_state_dict(best_state)
+
     return history
+
+
+def best_epoch(history: list) -> dict:
+    """The history row with the lowest val_loss -- report/compare against
+    this, not necessarily history[-1] (see train_model's docstring: early
+    stopping deliberately runs a few epochs past the best one)."""
+    return min(history, key=lambda h: h["val_loss"])
 
 
 def measure_inference_latency_ms(model, device: str = "cpu", n_reps: int = 200) -> float:
