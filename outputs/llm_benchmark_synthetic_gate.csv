@@ -1,0 +1,5 @@
+model,prompt_length,ttft_p50_ms,ttft_p95_ms,tok_s_p50,tok_s_p95
+fake-model-a,short,57.07,68.11,58.71,60.6
+fake-model-a,long,167.42,167.9,57.43,58.77
+fake-model-b,short,143.37,153.24,31.57,32.05
+fake-model-b,long,437.97,443.18,32.04,33.09
