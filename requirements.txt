@@ -4,3 +4,4 @@ requests
 huggingface_hub
 soundfile
 numpy
+pydantic
