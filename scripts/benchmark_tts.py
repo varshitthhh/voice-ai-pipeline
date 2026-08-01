@@ -11,9 +11,15 @@ a single ~15s chunk from Kokoro), so per-sentence calls are what make the
 two comparable at all.
 
 Engines:
-    Kokoro (kokoro-onnx, int8, CPU) -- runs and is timed locally.
-    Piper  (piper-tts, CPU)          -- runs and is timed locally.
-    XTTS v2 (coqui-tts)              -- TODO(gpu-required), see below.
+    Kokoro (kokoro-onnx, int8) -- runs and is timed locally on CPU; auto-
+                                   detects and uses a GPU if the
+                                   `onnxruntime-gpu` package is installed
+                                   (see Kokoro's own __init__, which checks
+                                   `importlib.util.find_spec("onnxruntime-gpu")`)
+                                   -- no code change needed here for that.
+    Piper  (piper-tts)             -- runs and is timed locally; pass
+                                       --use-cuda to run on GPU instead of CPU.
+    XTTS v2 (coqui-tts)             -- TODO(gpu-required), see below.
 
 TODO(gpu-required): XTTS v2 is ~2.1GB (checked via the HF API before
 deciding), CPML-licensed (non-commercial), and its autoregressive GPT2-style
@@ -87,6 +93,11 @@ async def bench_kokoro(sentences: list) -> list:
     from kokoro_onnx import Kokoro  # local import: only required if this engine is actually run
 
     kokoro = Kokoro(str(MODELS_DIR / "kokoro" / "kokoro-v1.0.int8.onnx"), str(MODELS_DIR / "kokoro" / "voices-v1.0.bin"))
+    # Reports which onnxruntime execution provider actually got used --
+    # CUDAExecutionProvider only if onnxruntime-gpu is installed AND a GPU
+    # is visible; falls back to CPUExecutionProvider silently otherwise, so
+    # this is worth recording rather than assuming from intent.
+    device = "cuda" if "CUDAExecutionProvider" in kokoro.sess.get_providers() else "cpu"
     await _synth_kokoro_one(kokoro, WARMUP_SENTENCE)
 
     rows = []
@@ -97,13 +108,13 @@ async def bench_kokoro(sentences: list) -> list:
             ttfcs.append(result["ttfc_s"])
             totals.append(result["total_s"])
         rows.append({
-            "engine": "kokoro", "sentence_index": idx, "sentence_chars": len(sentence),
+            "engine": "kokoro", "device": device, "sentence_index": idx, "sentence_chars": len(sentence),
             "ttfc_p50_ms": round(percentile(ttfcs, 0.50) * 1000, 1),
             "ttfc_p95_ms": round(percentile(ttfcs, 0.95) * 1000, 1),
             "total_p50_ms": round(percentile(totals, 0.50) * 1000, 1),
             "audio_duration_s": round(result["audio_duration_s"], 3),
         })
-        print(f"kokoro[{idx}]: TTFC_p50={rows[-1]['ttfc_p50_ms']}ms  {sentence!r}")
+        print(f"kokoro[{idx}] ({device}): TTFC_p50={rows[-1]['ttfc_p50_ms']}ms  {sentence!r}")
     return rows
 
 
@@ -127,10 +138,11 @@ def _synth_piper_one(voice, text: str) -> dict:
     return {"ttfc_s": ttfc_s, "total_s": total_s, "n_chunks": n_chunks, "audio_duration_s": n_samples / sample_rate}
 
 
-def bench_piper(sentences: list) -> list:
+def bench_piper(sentences: list, use_cuda: bool = False) -> list:
     from piper import PiperVoice  # local import: only required if this engine is actually run
 
-    voice = PiperVoice.load(str(MODELS_DIR / "piper" / "en_US-lessac-medium.onnx"))
+    voice = PiperVoice.load(str(MODELS_DIR / "piper" / "en_US-lessac-medium.onnx"), use_cuda=use_cuda)
+    device = "cuda" if use_cuda else "cpu"
     _synth_piper_one(voice, WARMUP_SENTENCE)
 
     rows = []
@@ -141,13 +153,13 @@ def bench_piper(sentences: list) -> list:
             ttfcs.append(result["ttfc_s"])
             totals.append(result["total_s"])
         rows.append({
-            "engine": "piper", "sentence_index": idx, "sentence_chars": len(sentence),
+            "engine": "piper", "device": device, "sentence_index": idx, "sentence_chars": len(sentence),
             "ttfc_p50_ms": round(percentile(ttfcs, 0.50) * 1000, 1),
             "ttfc_p95_ms": round(percentile(ttfcs, 0.95) * 1000, 1),
             "total_p50_ms": round(percentile(totals, 0.50) * 1000, 1),
             "audio_duration_s": round(result["audio_duration_s"], 3),
         })
-        print(f"piper[{idx}]: TTFC_p50={rows[-1]['ttfc_p50_ms']}ms  {sentence!r}")
+        print(f"piper[{idx}] ({device}): TTFC_p50={rows[-1]['ttfc_p50_ms']}ms  {sentence!r}")
     return rows
 
 
@@ -208,7 +220,7 @@ def write_csv(rows: list, path: Path) -> None:
     print(f"wrote {len(rows)} rows -> {path}")
 
 
-async def main_async(engines: list) -> None:
+async def main_async(engines: list, use_cuda: bool, csv_path: Path) -> None:
     sentences = split_sentences(TEST_TEXT)
     print(f"{len(sentences)} test sentences")
 
@@ -218,20 +230,26 @@ async def main_async(engines: list) -> None:
             print("\n--- xtts SKIPPED: TODO(gpu-required), see benchmark_xtts() docstring ---")
             continue
         print(f"\n--- {engine} ---")
-        runner = ENGINE_RUNNERS[engine]
-        result = runner(sentences)
+        if engine == "piper":
+            result = bench_piper(sentences, use_cuda=use_cuda)
+        else:
+            result = bench_kokoro(sentences)  # GPU use is auto-detected via onnxruntime-gpu, no arg needed
         if asyncio.iscoroutine(result):
             result = await result
         all_rows.extend(result)
 
-    write_csv(all_rows, CSV_PATH)
+    write_csv(all_rows, csv_path)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--engines", nargs="+", default=["kokoro", "piper"], choices=list(ENGINE_RUNNERS.keys()))
+    parser.add_argument("--use-cuda", action="store_true", help="run Piper on GPU (Kokoro auto-detects via onnxruntime-gpu)")
+    parser.add_argument("--csv-path", type=Path, default=None, help="defaults to outputs/tts_benchmark_gpu.csv if --use-cuda else outputs/tts_benchmark.csv (schemas differ by a 'device' column, kept separate on purpose)")
     args = parser.parse_args()
-    asyncio.run(main_async(args.engines))
+
+    csv_path = args.csv_path or (ROOT / "outputs" / ("tts_benchmark_gpu.csv" if args.use_cuda else "tts_benchmark.csv"))
+    asyncio.run(main_async(args.engines, args.use_cuda, csv_path))
 
 
 if __name__ == "__main__":
