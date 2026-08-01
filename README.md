@@ -14,7 +14,7 @@ That interval is decomposed into four sequential stages, each owned by a differe
 
 | Stage | Component | Budget (ms) | Measured from → to |
 |---|---|---|---|
-| Endpointing | Silero VAD v5 + learned endpointer | 300 – 700 | `t_speech_start` → `t_endpoint_decision` |
+| Endpointing | Silero VAD v5 + learned endpointer | 300 – 700 | `t_vad_trigger` → `t_endpoint_decision` |
 | ASR final | faster-whisper distil-large-v3 INT8 | 80 – 150 | `t_endpoint_decision` → `t_asr_final` |
 | LLM TTFT | Qwen2.5-7B-Instruct AWQ (vLLM) | 90 – 300 | `t_asr_final` → `t_llm_first_token` |
 | TTS first chunk | Kokoro-82M | 40 – 90 | `t_llm_first_token` (or first sentence boundary) → `t_tts_first_chunk` |

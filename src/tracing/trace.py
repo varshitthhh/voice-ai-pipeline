@@ -34,14 +34,25 @@ class TurnTrace:
     t_audio_out: Optional[float] = None
 
     def deltas_ms(self) -> dict:
-        """Stage-to-stage latency in ms, matching the README Section 1 budget rows."""
+        """Stage-to-stage latency in ms, matching the README Section 1 budget rows.
+
+        endpointing_ms is t_vad_trigger -> t_endpoint_decision, i.e. the
+        silence-wait duration itself, NOT t_speech_start -> t_endpoint_decision
+        (which would include the full utterance length beforehand and could
+        run into seconds, nowhere near the 300-700ms budget). Originally
+        written the wrong way in Phase 0.2 and invisible in that phase's
+        synthetic gate (plausible fake numbers, never cross-checked against
+        real audio) -- caught in Phase 4.4 once a real endpointer was
+        actually wired to real audio and endpointing_ms came back in the
+        thousands of ms instead of hundreds.
+        """
 
         def gap(a: str, b: str) -> Optional[float]:
             ta, tb = getattr(self, a), getattr(self, b)
             return None if ta is None or tb is None else round((tb - ta) * 1000, 2)
 
         return {
-            "endpointing_ms": gap("t_speech_start", "t_endpoint_decision"),
+            "endpointing_ms": gap("t_vad_trigger", "t_endpoint_decision"),
             "asr_final_ms": gap("t_endpoint_decision", "t_asr_final"),
             "llm_ttft_ms": gap("t_asr_final", "t_llm_first_token"),
             "tts_first_chunk_ms": gap("t_llm_first_token", "t_tts_first_chunk"),
