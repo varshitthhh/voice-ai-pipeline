@@ -98,6 +98,12 @@ class FeaturePipeline:
     def step(self, chunk: np.ndarray) -> FrameFeatures:
         if len(chunk) != self.frame_samples:
             raise ValueError(f"expected a {self.frame_samples}-sample chunk, got {len(chunk)}")
+        # Silero VAD's JIT model is float32-only and errors on float64
+        # ("expected Double but found Float" is the real message despite
+        # naming Float32 "Float") -- cast once here so every caller's audio
+        # dtype (float32 or float64 from soundfile, either is common) works,
+        # instead of relying on each caller to remember to load as float32.
+        chunk = np.asarray(chunk, dtype=np.float32)
 
         self._frame_index += 1
         self._audio_so_far = np.concatenate([self._audio_so_far, chunk])

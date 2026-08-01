@@ -1,0 +1,10 @@
+endpointer,threshold_label,response_latency_p50_ms,response_latency_p95_ms,false_interruption_rate,n_true_end_measured,n_true_end_missed,n_mid_turn,n_interrupted
+fixed_threshold,200ms,226.0,256.0,0.8,15,0,15,12
+fixed_threshold,300ms,322.0,352.0,0.6667,15,0,15,10
+fixed_threshold,500ms,514.0,544.0,0.6,15,0,15,9
+fixed_threshold,800ms,802.0,832.0,0.4,15,0,15,6
+learned,p>=0.5,122.0,122.0,0.0,1,14,15,0
+learned,p>=0.6,122.0,702.0,0.7333,9,6,15,11
+learned,p>=0.7,614.0,1390.0,0.4,11,4,15,6
+learned,p>=0.8,1270.0,1476.0,0.0,4,11,15,0
+learned,p>=0.9,nan,nan,0.0,0,15,15,0
