@@ -173,6 +173,7 @@ def main() -> None:
     parser.add_argument("--model-sizes", nargs="+", default=DEFAULT_MODEL_SIZES)
     parser.add_argument("--compute-types", nargs="+", default=DEFAULT_COMPUTE_TYPES)
     parser.add_argument("--n-clean-clips", type=int, default=5)
+    parser.add_argument("--csv-path", type=Path, default=CSV_PATH, help="defaults to outputs/asr_benchmark.csv; pass a separate path (e.g. outputs/asr_benchmark_gpu.csv) to avoid mixing CPU-smoke and real-GPU rows in one file")
     args = parser.parse_args()
 
     device = resolve_device()
@@ -190,15 +191,15 @@ def main() -> None:
                 continue
             all_rows.extend(benchmark_combo(model_size, compute_type, device, clean_clips, noisy_clips))
 
-    CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
-    is_new = not CSV_PATH.exists()
+    args.csv_path.parent.mkdir(parents=True, exist_ok=True)
+    is_new = not args.csv_path.exists()
     if all_rows:
-        with open(CSV_PATH, "a", newline="", encoding="utf-8") as f:
+        with open(args.csv_path, "a", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=list(all_rows[0].keys()))
             if is_new:
                 writer.writeheader()
             writer.writerows(all_rows)
-        print(f"\nappended {len(all_rows)} rows -> {CSV_PATH}")
+        print(f"\nappended {len(all_rows)} rows -> {args.csv_path}")
 
     if skipped:
         print("\nskipped combos (need GPU):")

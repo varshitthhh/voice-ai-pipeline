@@ -17,9 +17,9 @@ schema) is validated separately with a mocked engine in
 scripts/gate_2_2_synthetic_llm_bench.py, which actually runs and shares
 this file's measurement code via src/llm_bench/harness.py.
 
-Run on GPU hardware:
+Run on GPU hardware (defaults to Qwen2.5-7B-Instruct-AWQ vs Qwen2.5-3B-Instruct-AWQ):
     python scripts/benchmark_llm.py
-    python scripts/benchmark_llm.py --models Qwen/Qwen2.5-7B-Instruct-AWQ Qwen/Qwen2.5-7B-Instruct
+    python scripts/benchmark_llm.py --models Qwen/Qwen2.5-7B-Instruct-AWQ Qwen/Qwen2.5-7B-Instruct  # AWQ vs unquantized instead
 """
 
 import argparse
@@ -41,15 +41,16 @@ from llm_bench import (
     percentile,
 )
 
-PROMPT_LENGTH_CSV = ROOT / "outputs" / "llm_benchmark.csv"
-PREFIX_CACHE_CSV = ROOT / "outputs" / "llm_prefix_caching.csv"
+PROMPT_LENGTH_CSV = ROOT / "outputs" / "llm_benchmark_gpu.csv"
+PREFIX_CACHE_CSV = ROOT / "outputs" / "llm_prefix_caching_gpu.csv"
 
-# Production pick vs. the unquantized baseline it was chosen over -- this is
-# exactly the "decision doc justifying each pick against its rejects" the
-# Phase 2 gate calls for, not an arbitrary pair.
+# Production pick vs. a smaller same-family AWQ model -- the "is the extra
+# 7B worth it over 3B" question, not the "was quantizing worth it" question
+# (that comparison, 7B-AWQ vs unquantized 7B, was the original default here;
+# switched per direct instruction to compare against the smaller model instead).
 DEFAULT_MODELS = [
     "Qwen/Qwen2.5-7B-Instruct-AWQ",
-    "Qwen/Qwen2.5-7B-Instruct",
+    "Qwen/Qwen2.5-3B-Instruct-AWQ",
 ]
 
 MAX_OUTPUT_TOKENS = 200
