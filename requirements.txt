@@ -7,3 +7,5 @@ numpy
 pydantic
 faster-whisper
 jiwer
+kokoro-onnx
+piper-tts
