@@ -1,0 +1,7 @@
+model_size,compute_type,device,condition,n_clips,wer,rtf_p50,rtf_p95,latency_p50_ms,latency_p95_ms,vram_total_gb,vram_used_gb
+tiny,int8,cpu,clean,5,0.5714,0.2119,0.8848,792.64,976.45,,
+tiny,int8,cpu,noisy,25,0.7314,0.3637,2.3746,1188.84,3742.97,,
+base,int8,cpu,clean,5,0.4,0.3188,1.8238,1448.74,1634.15,,
+base,int8,cpu,noisy,25,0.6857,0.7058,5.1572,1784.65,4620.89,,
+tiny,int8,cpu,clean,2,0.6,0.1716,0.1716,790.62,790.62,,
+tiny,int8,cpu,noisy,10,0.8,0.1981,0.2807,914.33,1329.43,,

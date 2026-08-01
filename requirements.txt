@@ -5,3 +5,5 @@ huggingface_hub
 soundfile
 numpy
 pydantic
+faster-whisper
+jiwer
