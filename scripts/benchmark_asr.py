@@ -48,9 +48,44 @@ DEFAULT_MODEL_SIZES = ["tiny", "base"]  # CPU-feasible smoke matrix; see module 
 DEFAULT_COMPUTE_TYPES = ["int8"]
 
 
+_ONES = [
+    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+    "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
+    "seventeen", "eighteen", "nineteen",
+]
+_TENS = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"]
+
+
+def _number_to_words(n: int) -> str:
+    """0-999 only -- SLURP commands are times/dates/small quantities ("ten am",
+    "tomorrow"), never large numbers. Out-of-range values pass through as digits
+    rather than guess at a form nothing in this corpus actually uses."""
+    if n < 20:
+        return _ONES[n]
+    if n < 100:
+        tens, rem = divmod(n, 10)
+        return _TENS[tens] + (f" {_ONES[rem]}" if rem else "")
+    if n < 1000:
+        hundreds, rem = divmod(n, 100)
+        return f"{_ONES[hundreds]} hundred" + (f" {_number_to_words(rem)}" if rem else "")
+    return str(n)
+
+
 def normalize_text(s: str) -> str:
+    """Real bug found (not assumed) by inspecting actual reference/hypothesis
+    pairs on SLURP clips: reference transcripts spell numbers out ("ten am"),
+    Whisper outputs digits ("10 am") -- confirmed with faster-whisper's "base"
+    model, every occurrence, an otherwise-correct transcription counted as
+    wrong on every word touching the number. This was inflating WER on any
+    SLURP command containing a time/date/quantity, which is common (calendar-
+    domain commands especially). Converting digit sequences to words before
+    comparison, applied identically to both sides, fixes the false penalty
+    without touching genuine recognition errors (e.g. unusual proper nouns
+    like "Pawel" mis-heard as "Powell"/"Paul" -- that's real ASR difficulty on
+    this corpus, not a normalization bug, and stays counted as an error)."""
     s = s.lower().strip()
     s = re.sub(r"[^\w\s']", "", s)
+    s = re.sub(r"\d+", lambda m: _number_to_words(int(m.group())), s)
     s = re.sub(r"\s+", " ", s)
     return s
 
