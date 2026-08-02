@@ -1,0 +1,2 @@
+condition,baseline_threshold_ms,learned_threshold,baseline_latency_p50_ms,baseline_latency_p95_ms,learned_latency_p50_ms,learned_latency_p95_ms,latency_delta_mean_ms,latency_delta_ci95_lo_ms,latency_delta_ci95_hi_ms,wilcoxon_statistic,wilcoxon_p_value,baseline_false_interruption_rate,learned_false_interruption_rate,n_true_end,n_paired_complete_cases
+real_ami,800,0.7,874,,800,800,-74,,,,,0.217,0.068,236,236

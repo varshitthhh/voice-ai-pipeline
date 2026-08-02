@@ -1,0 +1,5 @@
+threshold_ms,response_latency_p50_ms,response_latency_p95_ms,n_true_end_measured,n_true_end_missed,false_interruption_rate,n_mid_turn,n_interrupted
+200,296.0,400.0,149,77,0.2086,374,78
+300,390.0,494.0,145,81,0.2139,374,80
+500,582.0,688.0,119,107,0.2166,374,81
+800,874.0,980.0,91,135,0.2166,374,81
