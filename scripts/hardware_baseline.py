@@ -41,7 +41,12 @@ BATCH = 16  # throughput measurement batch size
 
 # Serving the full stack (ASR + LLM + TTS) needs headroom beyond a single
 # 7B-AWQ model's footprint; below this we assume train/sweep-only duty.
-SERVING_VRAM_GB_MIN = 20
+# Was 20 (sized for a 24GB box that was never actually available this
+# project); lowered to 15 now that a 16GB T4 is the only GPU this project
+# has and is the one actually serving Phase 2's real numbers -- the
+# threshold should describe the hardware the project runs on, not hardware
+# that was never provisioned.
+SERVING_VRAM_GB_MIN = 15
 
 
 def build_workload(device: torch.device) -> nn.Module:
@@ -109,9 +114,10 @@ def measure(device: torch.device) -> dict:
 def recommend_role(device_type: str, vram_total_gb) -> str:
     if device_type != "cuda":
         return "orchestrator/dashboard only (no CUDA)"
-    # TODO(gpu-validation): SERVING_VRAM_GB_MIN=20 is a guess based on the
-    # 24GB box's spec sheet, not a measurement. Re-check this threshold once
-    # real vram_used_gb numbers exist for the actual serving stack (Phase 2).
+    # TODO(gpu-validation): SERVING_VRAM_GB_MIN=15 is sized for a 16GB T4,
+    # not a measurement. Re-check this threshold once real vram_used_gb
+    # numbers exist for the actual serving stack (Phase 2, Sections 12-14 of
+    # voice_ai_pipeline_v2.ipynb).
     if vram_total_gb is not None and vram_total_gb >= SERVING_VRAM_GB_MIN:
         return "serving: ASR + LLM + TTS (headline latency measured here)"
     return "training/sweeps only (insufficient VRAM to serve full stack)"
