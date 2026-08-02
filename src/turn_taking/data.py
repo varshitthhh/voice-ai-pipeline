@@ -169,6 +169,32 @@ def featurize_scenario(scenario: dict, vad_model, asr_model, asr_refresh_every_n
     )
 
 
+def filter_zero_mask_examples(examples: list) -> tuple:
+    """Drops any (token_ids, prosody, mask, label) example whose mask is
+    entirely zero, rather than letting it reach training/validation and
+    crash there. Real data can produce these where the synthetic corpus
+    never could: featurize_scenario's pause window is
+    `pause_start_frame <= i < pause_end_frame` with
+    `pause_start_frame = splice_sample // FRAME_SAMPLES` and
+    `pause_end_frame = pause_end_sample // FRAME_SAMPLES` (100ms frames) --
+    a real gap under ~100ms can floor-divide to the SAME frame index on both
+    ends, making that range empty. Confirmed on the real AMI manifest this
+    is not a rare edge case: 287/600 scenarios (mostly MID_TURN with
+    pause_ms=0.0) hit this -- almost certainly AMI's own transcript
+    segmentation splitting one continuous utterance across multiple rows
+    with zero actual silence between them, not real turn-taking holds.
+    Filtering here treats the symptom (safe to do -- a zero-mask example
+    contributes literally nothing to the loss in train_model, since every
+    loss term is gated by the mask); scripts/prepare_ami_turntaking.py's
+    MIN_GAP_MS is the actual root cause and raising it would fix future
+    regenerations at the source instead.
+
+    Returns (kept_examples, n_skipped).
+    """
+    kept = [ex for ex in examples if ex[2].sum() > 0]
+    return kept, len(examples) - len(kept)
+
+
 def collate(batch: list) -> tuple:
     """Pads a list of (token_ids, prosody, mask, label) to the batch's max length."""
     max_len = max(t.shape[0] for t, _, _, _ in batch)
