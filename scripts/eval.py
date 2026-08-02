@@ -31,6 +31,7 @@ from pathlib import Path
 
 import numpy as np
 import soundfile as sf
+import torch
 from scipy.stats import wilcoxon
 from silero_vad import load_silero_vad
 
@@ -146,7 +147,12 @@ def run_condition(labels_path: Path, checkpoint_path: Path, condition: str,
 
     from faster_whisper import WhisperModel
 
-    asr_model = WhisperModel("tiny", device="cpu", compute_type="int8")
+    # Hardcoded to CPU before -- on a T4 this was the actual cause of the paired-latency
+    # computation (which needs a learned trace for every scenario, not just TRUE_END) being
+    # too slow to complete in one Colab session. Use CUDA when available instead of ignoring it.
+    asr_device = "cuda" if torch.cuda.is_available() else "cpu"
+    asr_model = WhisperModel("tiny", device=asr_device, compute_type="int8")
+    print(f"[{condition}] trace-computation ASR device: {asr_device}")
 
     print(f"[{condition}] computing baseline latencies (threshold={baseline_threshold_ms}ms)...")
     baseline_lat = baseline_per_scenario_latency(vad_model, scenarios, audio_cache, baseline_threshold_ms)

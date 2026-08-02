@@ -157,7 +157,13 @@ def main() -> None:
 
     print("\n--- learned endpointer (Phase 3.3/3.4) ---")
     model = load_model_from_checkpoint(args.checkpoint)
-    asr_model = WhisperModel("tiny", device="cpu", compute_type="int8")
+    # Hardcoded to CPU before -- on a T4, this was the actual cause of the trace-computation
+    # sweep taking so long it had to be manually interrupted (~20/600 scenarios in 6 minutes,
+    # confirmed via the real Colab traceback: KeyboardInterrupt, not a bug). Use CUDA when
+    # available instead of ignoring it.
+    asr_device = "cuda" if torch.cuda.is_available() else "cpu"
+    asr_model = WhisperModel("tiny", device=asr_device, compute_type="int8")
+    print(f"trace-computation ASR device: {asr_device}")
 
     print("computing probability traces (one pass per scenario)...")
     traces = {}
