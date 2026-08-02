@@ -1,0 +1,5 @@
+window_ms,added_latency_p50_ms,added_latency_p95_ms,added_latency_mean_ms,decision_match_rate_vs_100ms_baseline,n_true_end_scenarios
+20,0,0,0.0,1.0,15
+50,0,0,0.0,1.0,15
+100,0,0,0.0,1.0,15
+200,0,100,28.57,1.0,15
