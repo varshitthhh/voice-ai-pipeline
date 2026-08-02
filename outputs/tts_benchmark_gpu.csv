@@ -1,0 +1,7 @@
+engine,device,sentence_index,sentence_chars,ttfc_p50_ms,ttfc_p95_ms,total_p50_ms,audio_duration_s
+kokoro,cpu,0,48,7604.1,8744.4,7604.1,2.496
+kokoro,cpu,1,41,5800.5,6725.2,5800.5,1.92
+kokoro,cpu,2,70,10981.7,12336.4,10981.8,3.733
+piper,cuda,0,48,264.0,293.1,264.1,2.426
+piper,cuda,1,41,248.1,250.0,248.1,2.113
+piper,cuda,2,70,592.4,657.4,592.4,3.738
