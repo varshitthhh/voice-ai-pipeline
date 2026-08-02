@@ -10,12 +10,25 @@ Usage:
 """
 
 import time
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Iterator, Optional
 
-from .trace import STAGE_FIELDS, TurnTrace
+from .trace import STAGE_FIELDS, TurnTrace, read_jsonl
 
 DEFAULT_TRACE_DIR = Path("traces")
+
+
+@dataclass
+class ReplaySpan:
+    """One stage mark, re-emitted from a historical trace file. Mirrors the
+    (stage, timestamp) shape of a live Tracer.mark() call, so downstream
+    analysis (Phase 6 stats, the dashboard) can consume a replayed session
+    the same way it would consume a live one."""
+
+    turn_id: str
+    stage: str
+    t: float
 
 
 class Tracer:
@@ -51,3 +64,22 @@ class Tracer:
         with open(self.path, "a", encoding="utf-8") as f:
             f.write(trace.to_json_line() + "\n")
         return trace
+
+    @staticmethod
+    def replay_session(jsonl_path: Path) -> Iterator[ReplaySpan]:
+        """Reads an existing session JSONL and re-emits its spans, in
+        STAGE_FIELDS order per turn, as an ordered stream of ReplaySpan
+        events -- the same (turn_id, stage, t) shape a live Tracer.mark()
+        call produces. Read-only: does not touch this Tracer's own state or
+        write anything.
+
+        Needed for Phase 6: re-running significance/regression analysis
+        against historical traces without re-running the pipeline that
+        produced them, and for the dashboard to step through an old session
+        the same way it would a live one.
+        """
+        for trace in read_jsonl(Path(jsonl_path)):
+            for stage in STAGE_FIELDS:
+                t = getattr(trace, stage)
+                if t is not None:
+                    yield ReplaySpan(turn_id=trace.turn_id, stage=stage, t=t)
