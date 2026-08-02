@@ -1,0 +1,13 @@
+model_size,compute_type,device,condition,n_clips,wer,rtf_p50,rtf_p95,latency_p50_ms,latency_p95_ms,vram_total_gb,vram_used_gb
+distil-large-v3,int8,cuda,clean,5,0.2857,0.2518,0.7354,669.72,1160.46,15.64,0.0
+distil-large-v3,int8,cuda,noisy,25,0.4743,0.1503,0.7499,643.43,692.36,15.64,0.0
+distil-large-v3,float16,cuda,clean,5,0.2571,0.1444,0.7283,656.15,668.37,15.64,0.0
+distil-large-v3,float16,cuda,noisy,25,0.4571,0.1533,0.7718,673.74,725.81,15.64,0.0
+large-v3,int8,cuda,clean,5,0.2,0.2313,0.8561,767.05,1066.06,15.64,0.0
+large-v3,int8,cuda,noisy,25,0.44,0.1879,0.8973,783.61,894.85,15.64,0.0
+large-v3,float16,cuda,clean,5,0.2,0.2064,0.8846,792.63,951.2,15.64,0.0
+large-v3,float16,cuda,noisy,25,0.44,0.1907,0.9351,837.76,1259.67,15.64,0.0
+small,int8,cuda,clean,5,0.3429,0.0826,0.2844,254.82,380.72,15.64,0.0
+small,int8,cuda,noisy,25,0.5029,0.0608,1.4601,257.57,1308.29,15.64,0.0
+small,float16,cuda,clean,5,0.3429,0.0549,0.2707,242.56,253.93,15.64,0.0
+small,float16,cuda,noisy,25,0.5029,0.0645,0.8826,272.71,980.91,15.64,0.0
