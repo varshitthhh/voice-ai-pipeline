@@ -142,7 +142,19 @@ def bench_piper(sentences: list, use_cuda: bool = False) -> list:
     from piper import PiperVoice  # local import: only required if this engine is actually run
 
     voice = PiperVoice.load(str(MODELS_DIR / "piper" / "en_US-lessac-medium.onnx"), use_cuda=use_cuda)
-    device = "cuda" if use_cuda else "cpu"
+    # Real bug found and fixed here: this used to trust the use_cuda REQUEST rather than
+    # checking what actually loaded, same class of bug Kokoro's code (above) already guards
+    # against. Confirmed on a real Colab T4 run: PiperVoice.load(use_cuda=True) only requests
+    # CUDAExecutionProvider (see piper's own source -- no CPU entry in that providers list),
+    # but onnxruntime logged "Failed to create CUDAExecutionProvider... Require cuDNN 9.*
+    # and CUDA 13.*" and silently still produced a working session -- the committed "cuda"
+    # numbers for that run were actually CPU, mislabeled. Reading the real provider list is
+    # the only way to know, not the flag that was passed in.
+    actual_providers = voice.session.get_providers()
+    device = "cuda" if "CUDAExecutionProvider" in actual_providers else "cpu"
+    if use_cuda and device == "cpu":
+        print(f"WARNING: --use-cuda was requested but CUDAExecutionProvider is not active "
+              f"(actual providers: {actual_providers}) -- reporting device=cpu, not the requested flag")
     _synth_piper_one(voice, WARMUP_SENTENCE)
 
     rows = []
