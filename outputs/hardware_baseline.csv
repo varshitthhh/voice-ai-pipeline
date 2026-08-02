@@ -1,0 +1,2 @@
+timestamp_utc,label,device_type,device_name,torch_version,ttft_ms,throughput_samples_per_sec,vram_total_gb,vram_used_gb,recommended_role
+2026-08-02T07:23:46+00:00,zenbook-cpu,cpu,"Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",2.10.0+cpu,8.431,961.5,,,orchestrator/dashboard only (no CUDA)

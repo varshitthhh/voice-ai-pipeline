@@ -10,3 +10,5 @@ jiwer
 kokoro-onnx
 piper-tts
 silero-vad==5.1.2
+scipy
+streamlit

@@ -16,6 +16,7 @@ speaker's active speech) are fed to the GRU as context but excluded from
 the loss via `loss_mask` -- they aren't labeled decision points.
 """
 
+import json
 import random
 from pathlib import Path
 
@@ -82,6 +83,49 @@ def generate_scenarios(slurp_audio_dir: Path, n_scenarios: int, vad_model, seed:
             "audio": audio,
             "label": 1 if is_true_end else 0,
             "splice_sample": splice_sample,
+            "pause_end_sample": pause_end_sample,
+        })
+
+    return scenarios
+
+
+def load_real_scenarios_jsonl(labels_path: Path, root: Path) -> list:
+    """Adapts a real-data manifest (the EVAL schema written by
+    prepare_ami_turntaking.py / prepare_synthetic_turn_taking_eval.py --
+    on-disk audio_path, string label, speech_b_start_sample, one row per
+    scenario) into the TRAINING schema generate_scenarios() produces
+    in-memory (loaded audio array, int label, pause_end_sample) -- these are
+    two different shapes in this codebase for two different consumers
+    (eval scripts read the manifest directly; featurize_scenario() below
+    expects the training shape), and this is the one place that converts
+    between them, so the two don't silently drift out of sync.
+
+    speech_b_start_sample -> pause_end_sample is a real semantic mapping,
+    not just a rename: for MID_TURN they're the same sample (where clip_b's
+    speech starts); for TRUE_END, speech_b_start_sample is None (nothing
+    follows) but pause_end_sample must be the actual end of the rendered
+    audio (the trailing silence goes all the way to the end of the file),
+    which is only known once the audio is loaded.
+    """
+    with open(labels_path, "r", encoding="utf-8") as f:
+        rows = [json.loads(line) for line in f]
+
+    scenarios = []
+    for row in rows:
+        audio, sr = sf.read(root / row["audio_path"], dtype="float64")
+        assert sr == SAMPLE_RATE, f"{row['audio_path']} is {sr}Hz, expected {SAMPLE_RATE}"
+
+        if row["label"] == "TRUE_END":
+            pause_end_sample = len(audio)
+        elif row["label"] == "MID_TURN":
+            pause_end_sample = row["speech_b_start_sample"]
+        else:
+            raise ValueError(f"unknown label {row['label']!r} in {row['scenario_id']} -- expected TRUE_END or MID_TURN")
+
+        scenarios.append({
+            "audio": audio,
+            "label": 1 if row["label"] == "TRUE_END" else 0,
+            "splice_sample": row["splice_sample"],
             "pause_end_sample": pause_end_sample,
         })
 

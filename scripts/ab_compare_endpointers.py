@@ -127,6 +127,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--labels", type=Path, default=DEFAULT_LABELS)
     parser.add_argument("--checkpoint", type=Path, default=DEFAULT_CHECKPOINT)
+    parser.add_argument("--csv-path", type=Path, default=CSV_PATH, help="defaults to outputs/ab_comparison.csv; pass a separate path (e.g. outputs/ab_comparison_real.csv) to avoid overwriting the synthetic-corpus run")
+    parser.add_argument("--plot-path", type=Path, default=PLOT_PATH)
     args = parser.parse_args()
 
     if not args.labels.exists():
@@ -173,16 +175,16 @@ def main() -> None:
         print(f"  threshold={threshold}: latency_p50={row['response_latency_p50_ms']}ms interrupt={row['false_interruption_rate'] * 100:.1f}%")
 
     all_rows = baseline_rows + learned_rows
-    CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
+    args.csv_path.parent.mkdir(parents=True, exist_ok=True)
     fieldnames = [
         "endpointer", "threshold_label", "response_latency_p50_ms", "response_latency_p95_ms",
         "false_interruption_rate", "n_true_end_measured", "n_true_end_missed", "n_mid_turn", "n_interrupted",
     ]
-    with open(CSV_PATH, "w", newline="", encoding="utf-8") as f:
+    with open(args.csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(all_rows)
-    print(f"\nwrote {CSV_PATH}")
+    print(f"\nwrote {args.csv_path}")
 
     fig, ax = plt.subplots(figsize=(7, 5))
     bx = [r["false_interruption_rate"] * 100 for r in baseline_rows]
@@ -199,12 +201,12 @@ def main() -> None:
 
     ax.set_xlabel("false interruption rate (%)")
     ax.set_ylabel("response latency, p50 (ms)")
-    ax.set_title("Phase 3.5 A/B: learned endpointer vs. fixed-threshold baseline\n(synthetic corpus -- rerun on the real Phase 6.1 eval set later)")
+    ax.set_title(f"A/B: learned endpointer vs. fixed-threshold baseline\n({args.labels.name})")
     ax.legend()
     ax.grid(alpha=0.3)
     fig.tight_layout()
-    fig.savefig(PLOT_PATH, dpi=150)
-    print(f"wrote {PLOT_PATH}")
+    fig.savefig(args.plot_path, dpi=150)
+    print(f"wrote {args.plot_path}")
 
 
 if __name__ == "__main__":

@@ -150,6 +150,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--labels", type=Path, default=DEFAULT_LABELS)
     parser.add_argument("--thresholds-ms", nargs="+", type=int, default=THRESHOLDS_MS)
+    parser.add_argument("--csv-path", type=Path, default=CSV_PATH, help="defaults to outputs/fixed_threshold_vad_baseline.csv; pass a separate path (e.g. outputs/fixed_threshold_vad_baseline_real.csv) to avoid overwriting the synthetic-corpus run")
+    parser.add_argument("--plot-path", type=Path, default=PLOT_PATH)
     args = parser.parse_args()
 
     if not args.labels.exists():
@@ -175,14 +177,14 @@ def main() -> None:
             + (f"  [{row['n_true_end_missed']} TRUE_END never detected]" if row["n_true_end_missed"] else "")
         )
 
-    CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(CSV_PATH, "w", newline="", encoding="utf-8") as f:
+    args.csv_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(args.csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
         writer.writeheader()
         writer.writerows(rows)
-    print(f"wrote {CSV_PATH}")
+    print(f"wrote {args.csv_path}")
 
-    plot_tradeoff(rows, PLOT_PATH)
+    plot_tradeoff(rows, args.plot_path)
 
 
 if __name__ == "__main__":
