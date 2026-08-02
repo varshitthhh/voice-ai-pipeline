@@ -28,6 +28,7 @@ Run the real matrix on GPU hardware:
 
 import argparse
 import csv
+import gc
 import json
 import re
 import time
@@ -190,6 +191,15 @@ def main() -> None:
                 skipped.append((model_size, requested_ct, todo_note))
                 continue
             all_rows.extend(benchmark_combo(model_size, compute_type, device, clean_clips, noisy_clips))
+            # Defensive cleanup between the 6 sequential model loads in the
+            # real GPU matrix (distil-large-v3/large-v3/small x int8/float16)
+            # -- CTranslate2 models aren't tracked by torch's allocator, so
+            # this is insurance against VRAM fragmentation/buildup on a
+            # memory-constrained card (e.g. a 16GB T4), not a fix for a
+            # confirmed leak.
+            gc.collect()
+            if device == "cuda":
+                torch.cuda.empty_cache()
 
     args.csv_path.parent.mkdir(parents=True, exist_ok=True)
     is_new = not args.csv_path.exists()
