@@ -4,14 +4,16 @@ significance, and regression gates.
 **What this proves right now, and what it doesn't.** Phase 6.1 calls for a
 100 clean + 100 spontaneous + 100 noisy real-turn eval set; that data still
 doesn't exist (same CANDOR/roleplay blocker as Phase 1.1/3.x -- see
-STATUS.md). What CAN be built and validated now is the harness itself:
-paired per-scenario latency extraction, bootstrap CI + Wilcoxon
-signed-rank on the latency delta, false-interruption / over-wait rates, and
-the 3 regression-gate asserts. This script dry-runs that harness against
-the existing synthetic 30-scenario corpus under a single condition labeled
-"synthetic_dry_run" -- explicitly NOT one of the plan's three real
-conditions. Point --labels/--condition at real per-condition eval sets once
-they exist; nothing else here needs to change.
+STATUS.md). Defaults now point at the real AMI turn-taking data (600 real
+scenarios from real meeting audio, see scripts/prepare_ami_turntaking.py)
+under condition "real_ami" -- real audio and a real trained checkpoint, but
+still one condition, not the three the plan calls for, and the
+baseline/learned threshold pair is NOT YET matched for this corpus (see the
+BASELINE_THRESHOLD_MS/LEARNED_THRESHOLD comment below -- pass
+--baseline-threshold-ms/--learned-threshold explicitly once the real sweep
+exists). Point --labels/--checkpoint at data/turn_taking/synthetic/
+scenarios.jsonl and outputs/turn_taking_model.pt for the original synthetic
+harness dry-run instead; nothing else here needs to change to do that.
 
 Bootstrap CI and Wilcoxon both run on PAIRED per-scenario latencies (same
 scenario_id, baseline vs. learned) -- only scenarios where both endpointers
@@ -45,22 +47,32 @@ from baseline_fixed_threshold_vad import load_scenarios, run_endpointer  # noqa:
 SAMPLE_RATE = 16000
 LEARNED_FRAME_SAMPLES = 1600  # 100ms @ 16kHz, matches Phase 3.2 FeaturePipeline
 
-# The matched operating point compared: NOT just "a reasonable default" --
-# matched by false_interruption_rate, per outputs/ab_comparison.csv (Phase
-# 3.5's own A/B sweep). At learned threshold 0.7, false_interruption_rate is
-# 0.4; the fixed-threshold baseline hits that same 0.4 rate at 800ms
-# (200/300/500ms all interrupt far more often -- 0.8/0.667/0.6 -- so
-# pairing against any of those would be comparing apples to oranges, not a
-# stricter baseline). This reproduces the "614ms vs 802ms at 40% interrupt
-# rate" comparison already reported in STATUS.md, now as a proper paired
-# per-scenario stat test instead of two independent aggregates.
+# These defaults were matched by false_interruption_rate on the SYNTHETIC
+# corpus (outputs/ab_comparison.csv): at learned threshold 0.7,
+# false_interruption_rate is 0.4, and the fixed-threshold baseline hits that
+# same 0.4 rate at 800ms. They do NOT transfer to real AMI data -- confirmed
+# on the actual real baseline sweep (outputs/fixed_threshold_vad_baseline_real.csv):
+# every baseline threshold (200-800ms) clusters around 20.9%-21.7% interrupt
+# rate, nothing close to 40%, and the one real learned-threshold data point
+# gathered so far (0.7 -> 6.8% interrupt, from the ad hoc Colab run, see
+# outputs/ab_comparison_real.csv) doesn't match any of them either. The real
+# matched pair for AMI data is NOT YET KNOWN -- it needs the full sweep across
+# all 5 learned thresholds (Section 5's designed pipeline, still unexecuted
+# because it was too slow before the ASR-device fix) to find the closest
+# real pair, not a guess. Always pass --baseline-threshold-ms/--learned-threshold
+# explicitly once that sweep exists; these module-level values are the last-
+# resort synthetic-corpus fallback, not a real-data default.
 BASELINE_THRESHOLD_MS = 800
 LEARNED_THRESHOLD = 0.7
 
 ENDPOINTING_BUDGET_MS = 700  # README latency budget, upper bound -- over this counts as "over-wait"
 
-DEFAULT_LABELS = ROOT / "data" / "turn_taking" / "synthetic" / "scenarios.jsonl"
-DEFAULT_CHECKPOINT = ROOT / "outputs" / "turn_taking_model.pt"
+# Defaults now point at real AMI data, not the synthetic corpus -- pass
+# --labels/--checkpoint pointing at data/turn_taking/synthetic/scenarios.jsonl
+# and outputs/turn_taking_model.pt explicitly if the synthetic dry-run is
+# what's actually wanted (e.g. to re-validate the harness itself).
+DEFAULT_LABELS = ROOT / "data" / "turn_taking" / "real_ami" / "scenarios.jsonl"
+DEFAULT_CHECKPOINT = ROOT / "outputs" / "turn_taking_model_real.pt"
 CSV_PATH = ROOT / "outputs" / "eval_summary.csv"
 REFERENCE_PATH = ROOT / "outputs" / "eval_regression_reference.json"
 
@@ -257,7 +269,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--labels", type=Path, default=DEFAULT_LABELS)
     parser.add_argument("--checkpoint", type=Path, default=DEFAULT_CHECKPOINT)
-    parser.add_argument("--condition", default="synthetic_dry_run", help="label for this eval set; use clean/spontaneous/noisy once real per-condition data exists")
+    parser.add_argument("--condition", default="real_ami", help="label for this eval set; use clean/spontaneous/noisy once the real 3-condition Phase 6.1 data exists")
     parser.add_argument("--baseline-threshold-ms", type=int, default=BASELINE_THRESHOLD_MS, help=f"defaults to {BASELINE_THRESHOLD_MS}ms, tuned for the SYNTHETIC corpus -- pass a value matched by interrupt rate on whatever corpus --labels points at instead")
     parser.add_argument("--learned-threshold", type=float, default=LEARNED_THRESHOLD, help=f"defaults to {LEARNED_THRESHOLD}, tuned for the SYNTHETIC corpus -- see --baseline-threshold-ms")
     parser.add_argument("--csv-path", type=Path, default=CSV_PATH, help="defaults to outputs/eval_summary.csv; pass a separate path (e.g. outputs/ab_comparison_real.csv) to avoid mixing corpora in one file")
